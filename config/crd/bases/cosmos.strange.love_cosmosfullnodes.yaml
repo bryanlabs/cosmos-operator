@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
     annotations:
-        controller-gen.kubebuilder.io/version: v0.16.5
+        controller-gen.kubebuilder.io/version: v0.14.0
     name: cosmosfullnodes.cosmos.strange.love
 spec:
     group: cosmos.strange.love
@@ -1005,7 +1005,6 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         type: string
                                                                 required:
                                                                     - port
@@ -1110,7 +1109,6 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         type: string
                                                                 required:
                                                                     - port
@@ -1269,7 +1267,6 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         type: string
                                                                 required:
                                                                     - port
@@ -1446,6 +1443,7 @@ spec:
                                                     removed or restarted. The kubelet may evict a Pod if an ephemeral container causes the
                                                     Pod to exceed its resource allocation.
 
+
                                                     To add an ephemeral container, use the ephemeralcontainers subresource of an existing
                                                     Pod. Ephemeral containers may not be removed or restarted.
                                                 properties:
@@ -1510,6 +1508,7 @@ spec:
                                                                                     description: |-
                                                                                         Name of the referent.
                                                                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                                                                     type: string
                                                                                 optional:
                                                                                     description: Specify whether the ConfigMap or its key must be defined
@@ -1565,6 +1564,7 @@ spec:
                                                                                     description: |-
                                                                                         Name of the referent.
                                                                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                                                                     type: string
                                                                                 optional:
                                                                                     description: Specify whether the Secret or its key must be defined
@@ -1596,6 +1596,7 @@ spec:
                                                                             description: |-
                                                                                 Name of the referent.
                                                                                 More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                                                TODO: Add other useful fields. apiVersion, kind, uid?
                                                                             type: string
                                                                         optional:
                                                                             description: Specify whether the ConfigMap must be defined
@@ -1612,6 +1613,7 @@ spec:
                                                                             description: |-
                                                                                 Name of the referent.
                                                                                 More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                                                TODO: Add other useful fields. apiVersion, kind, uid?
                                                                             type: string
                                                                         optional:
                                                                             description: Specify whether the Secret must be defined
@@ -1849,10 +1851,10 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         description: |-
                                                                             Service is the name of the service to place in the gRPC HealthCheckRequest
                                                                             (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+
 
                                                                             If this is not specified, the default behavior is defined by gRPC.
                                                                         type: string
@@ -2041,10 +2043,10 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         description: |-
                                                                             Service is the name of the service to place in the gRPC HealthCheckRequest
                                                                             (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+
 
                                                                             If this is not specified, the default behavior is defined by gRPC.
                                                                         type: string
@@ -2305,6 +2307,7 @@ spec:
                                                                             type indicates which kind of seccomp profile will be applied.
                                                                             Valid options are:
 
+
                                                                             Localhost - a profile defined in a file on the node should be used.
                                                                             RuntimeDefault - the container runtime default profile should be used.
                                                                             Unconfined - no profile should be applied.
@@ -2380,10 +2383,10 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         description: |-
                                                                             Service is the name of the service to place in the gRPC HealthCheckRequest
                                                                             (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+
 
                                                                             If this is not specified, the default behavior is defined by gRPC.
                                                                         type: string
@@ -2513,6 +2516,7 @@ spec:
                                                             If set, the name of the container from PodSpec that this ephemeral container targets.
                                                             The ephemeral container will be run in the namespaces (IPC, PID, etc) of this container.
                                                             If not set then the ephemeral container uses the namespaces configured in the Pod spec.
+
 
                                                             The container runtime must implement support for this feature. If the runtime does not
                                                             support namespace targeting then the result of setting this field is undefined.
@@ -2679,6 +2683,7 @@ spec:
                                                         description: |-
                                                             Name of the referent.
                                                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                            TODO: Add other useful fields. apiVersion, kind, uid?
                                                         type: string
                                                 type: object
                                                 x-kubernetes-map-type: atomic
@@ -2906,7 +2911,6 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         type: string
                                                                 required:
                                                                     - port
@@ -3011,7 +3015,6 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         type: string
                                                                 required:
                                                                     - port
@@ -3170,7 +3173,6 @@ spec:
                                                                         format: int32
                                                                         type: integer
                                                                     service:
-                                                                        default: ""
                                                                         type: string
                                                                 required:
                                                                     - port
@@ -3321,8 +3323,10 @@ spec:
                                                 Specifies the OS of the containers in the pod.
                                                 Some pod and container fields are restricted if this is set.
 
+
                                                 If the OS field is set to linux, the following fields must be unset:
                                                 -securityContext.windowsOptions
+
 
                                                 If the OS field is set to windows, following fields must be unset:
                                                 - spec.hostPID
@@ -3449,9 +3453,11 @@ spec:
                                                         Some volume types allow the Kubelet to change the ownership of that volume
                                                         to be owned by the pod:
 
+
                                                         1. The owning GID will be the FSGroup
                                                         2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
                                                         3. The permission bits are OR'd with rw-rw----
+
 
                                                         If unset, the Kubelet will not modify the ownership and permissions of any volume.
                                                         Note that this field cannot be set when spec.os.name is windows.
@@ -3534,6 +3540,7 @@ spec:
                                                             description: |-
                                                                 type indicates which kind of seccomp profile will be applied.
                                                                 Valid options are:
+
 
                                                                 Localhost - a profile defined in a file on the node should be used.
                                                                 RuntimeDefault - the container runtime default profile should be used.
@@ -3787,6 +3794,7 @@ spec:
                                                             Valid values are integers greater than 0.
                                                             When value is not nil, WhenUnsatisfiable must be DoNotSchedule.
 
+
                                                             For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same
                                                             labelSelector spread as 2/2/2:
                                                             | zone1 | zone2 | zone3 |
@@ -3795,6 +3803,7 @@ spec:
                                                             In this situation, new pod with the same labelSelector cannot be scheduled,
                                                             because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones,
                                                             it will violate MaxSkew.
+
 
                                                             This is a beta field and requires the MinDomainsInPodTopologySpread feature gate to be enabled (enabled by default).
                                                         format: int32
@@ -3806,6 +3815,7 @@ spec:
                                                             - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.
                                                             - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.
 
+
                                                             If this value is nil, the behavior is equivalent to the Honor policy.
                                                             This is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.
                                                         type: string
@@ -3816,6 +3826,7 @@ spec:
                                                             - Honor: nodes without taints, along with tainted nodes for which the incoming pod
                                                             has a toleration, are included.
                                                             - Ignore: node taints are ignored. All nodes are included.
+
 
                                                             If this value is nil, the behavior is equivalent to the Ignore policy.
                                                             This is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.
@@ -4584,7 +4595,7 @@ spec:
                                         description: |-
                                             Specify shell (sh) script commands to properly download and save the address book file.
                                             Prefer AddrbookURL if the file is in a conventional format.
-                                            The available shell commands are from docker image ghcr.io/strangelove-ventures/infra-toolkit, including wget and curl.
+                                            The available shell commands are from docker image ghcr.io/bryanlabs/infra-toolkit, including wget and curl.
                                             Save the file to env var $ADDRBOOK_FILE.
                                             E.g. curl https://url-to-addrbook.com > $ADDRBOOK_FILE
                                             Takes precedence over AddrbookURL.
@@ -4665,14 +4676,17 @@ spec:
                                                             ResponseCommit.RetainHeight value during ABCI Commit. A value of 0 indicates
                                                             that no blocks should be pruned.
 
+
                                                             This configuration value is only responsible for pruning Comet blocks.
                                                             It has no bearing on application state pruning which is determined by the
                                                             "pruning-*" configurations.
+
 
                                                             Note: CometBFT block pruning is dependent on this parameter in conjunction
                                                             with the unbonding (safety threshold) period, state pruning and state sync
                                                             snapshot parameters to determine the correct minimum value of
                                                             ResponseCommit.RetainHeight.
+
 
                                                             If not set, defaults to 0.
                                                         format: int32
@@ -4772,7 +4786,7 @@ spec:
                                         description: |-
                                             Specify shell (sh) script commands to properly download and save the genesis file.
                                             Prefer GenesisURL if the file is in a conventional format.
-                                            The available shell commands are from docker image ghcr.io/strangelove-ventures/infra-toolkit, including wget and curl.
+                                            The available shell commands are from docker image ghcr.io/bryanlabs/infra-toolkit, including wget and curl.
                                             Save the file to env var $GENESIS_FILE.
                                             E.g. curl https://url-to-genesis.com | jq '.genesis' > $GENESIS_FILE
                                             Takes precedence over GenesisURL.
@@ -4844,7 +4858,7 @@ spec:
                                         description: |-
                                             Specify shell (sh) script commands to properly download and process a snapshot archive.
                                             Prefer SnapshotURL if possible.
-                                            The available shell commands are from docker image ghcr.io/strangelove-ventures/infra-toolkit, including wget and curl.
+                                            The available shell commands are from docker image ghcr.io/bryanlabs/infra-toolkit, including wget and curl.
                                             Save the file to env var $GENESIS_FILE.
                                             Takes precedence over SnapshotURL.
                                             Hint: Use "set -eux" in your script.
@@ -6034,7 +6048,6 @@ spec:
                                                                     format: int32
                                                                     type: integer
                                                                 service:
-                                                                    default: ""
                                                                     type: string
                                                             required:
                                                                 - port
@@ -6139,7 +6152,6 @@ spec:
                                                                     format: int32
                                                                     type: integer
                                                                 service:
-                                                                    default: ""
                                                                     type: string
                                                             required:
                                                                 - port
@@ -6298,7 +6310,6 @@ spec:
                                                                     format: int32
                                                                     type: integer
                                                                 service:
-                                                                    default: ""
                                                                     type: string
                                                             required:
                                                                 - port
@@ -6440,6 +6451,7 @@ spec:
                                                     description: |-
                                                         Name of the referent.
                                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                        TODO: Add other useful fields. apiVersion, kind, uid?
                                                     type: string
                                             type: object
                                             x-kubernetes-map-type: atomic
@@ -6667,7 +6679,6 @@ spec:
                                                                     format: int32
                                                                     type: integer
                                                                 service:
-                                                                    default: ""
                                                                     type: string
                                                             required:
                                                                 - port
@@ -6772,7 +6783,6 @@ spec:
                                                                     format: int32
                                                                     type: integer
                                                                 service:
-                                                                    default: ""
                                                                     type: string
                                                             required:
                                                                 - port
@@ -6931,7 +6941,6 @@ spec:
                                                                     format: int32
                                                                     type: integer
                                                                 service:
-                                                                    default: ""
                                                                     type: string
                                                             required:
                                                                 - port
@@ -7916,6 +7925,7 @@ spec:
                                         description: |-
                                             Automatically increases PVC storage as they approach capacity.
 
+
                                             Your cluster must support and use the ExpandInUsePersistentVolumes feature gate. This allows volumes to
                                             expand while a pod is attached to it, thus eliminating the need to restart pods.
                                             If you cluster does not support ExpandInUsePersistentVolumes, you will need to manually restart pods after
@@ -7926,8 +7936,10 @@ spec:
                                                     How much to increase the PVC's capacity.
                                                     Either a percentage (e.g. 20%) or a resource storage quantity (e.g. 100Gi).
 
+
                                                     If a percentage, the existing capacity increases by the percentage.
                                                     E.g. PVC of 100Gi capacity + IncreaseQuantity of 20% increases disk to 120Gi.
+
 
                                                     If a storage quantity (e.g. 100Gi), increases by that amount.
                                                 type: string

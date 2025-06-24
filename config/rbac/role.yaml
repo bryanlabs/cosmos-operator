@@ -29,6 +29,24 @@ rules:
   - patch
   - update
 - apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - batch
   resources:
   - jobs
@@ -41,8 +59,6 @@ rules:
   - cosmos.strange.love
   resources:
   - cosmosfullnodes
-  - scheduledvolumesnapshots
-  - statefuljobs
   verbs:
   - create
   - delete
@@ -55,15 +71,63 @@ rules:
   - cosmos.strange.love
   resources:
   - cosmosfullnodes/finalizers
-  - scheduledvolumesnapshots/finalizers
-  - statefuljobs/finalizers
   verbs:
   - update
 - apiGroups:
   - cosmos.strange.love
   resources:
   - cosmosfullnodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cosmos.strange.love
+  resources:
+  - scheduledvolumesnapshots
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cosmos.strange.love
+  resources:
+  - scheduledvolumesnapshots/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cosmos.strange.love
+  resources:
   - scheduledvolumesnapshots/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cosmos.strange.love
+  resources:
+  - statefuljobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cosmos.strange.love
+  resources:
+  - statefuljobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cosmos.strange.love
+  resources:
   - statefuljobs/status
   verbs:
   - get

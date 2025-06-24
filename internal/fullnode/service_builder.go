@@ -3,10 +3,10 @@ package fullnode
 import (
 	"fmt"
 
+	cosmosv1 "github.com/bryanlabs/cosmos-operator/api/v1"
+	"github.com/bryanlabs/cosmos-operator/internal/diff"
+	"github.com/bryanlabs/cosmos-operator/internal/kube"
 	"github.com/samber/lo"
-	cosmosv1 "github.com/strangelove-ventures/cosmos-operator/api/v1"
-	"github.com/strangelove-ventures/cosmos-operator/internal/diff"
-	"github.com/strangelove-ventures/cosmos-operator/internal/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -58,7 +58,7 @@ func BuildServices(crd *cosmosv1.CosmosFullNode) []diff.Resource[*corev1.Service
 			{
 				Name:       "p2p",
 				Protocol:   corev1.ProtocolTCP,
-				Port:       p2pPort,
+				Port:       crd.Spec.ChainSpec.Comet.P2PPort(),
 				TargetPort: intstr.FromString("p2p"),
 			},
 		}
@@ -148,7 +148,7 @@ func rpcService(crd *cosmosv1.CosmosFullNode) *corev1.Service {
 		{
 			Name:       "rpc",
 			Protocol:   corev1.ProtocolTCP,
-			Port:       rpcPort,
+			Port:       crd.Spec.ChainSpec.Comet.RPCPort(),
 			TargetPort: intstr.FromString("rpc"),
 		},
 		{

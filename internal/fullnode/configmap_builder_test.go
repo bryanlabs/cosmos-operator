@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	cosmosv1 "github.com/strangelove-ventures/cosmos-operator/api/v1"
-	"github.com/strangelove-ventures/cosmos-operator/internal/test"
+	cosmosv1 "github.com/bryanlabs/cosmos-operator/api/v1"
+	"github.com/bryanlabs/cosmos-operator/internal/test"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"

@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	cosmosv1 "github.com/bryanlabs/cosmos-operator/api/v1"
+	"github.com/bryanlabs/cosmos-operator/internal/diff"
+	"github.com/bryanlabs/cosmos-operator/internal/kube"
+	"github.com/bryanlabs/cosmos-operator/internal/test"
 	"github.com/samber/lo"
-	cosmosv1 "github.com/strangelove-ventures/cosmos-operator/api/v1"
-	"github.com/strangelove-ventures/cosmos-operator/internal/diff"
-	"github.com/strangelove-ventures/cosmos-operator/internal/kube"
-	"github.com/strangelove-ventures/cosmos-operator/internal/test"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -51,7 +51,7 @@ func TestBuildServices(t *testing.T) {
 					{
 						Name:       "p2p",
 						Protocol:   corev1.ProtocolTCP,
-						Port:       26656,
+						Port:       crd.Spec.ChainSpec.Comet.P2PPort(),
 						TargetPort: intstr.FromString("p2p"),
 					},
 				},
@@ -92,7 +92,7 @@ func TestBuildServices(t *testing.T) {
 					{
 						Name:       "p2p",
 						Protocol:   corev1.ProtocolTCP,
-						Port:       26656,
+						Port:       crd.Spec.ChainSpec.Comet.P2PPort(),
 						TargetPort: intstr.FromString("p2p"),
 					},
 				},
@@ -192,7 +192,7 @@ func TestBuildServices(t *testing.T) {
 					{
 						Name:       "p2p",
 						Protocol:   corev1.ProtocolTCP,
-						Port:       26656,
+						Port:       crd.Spec.ChainSpec.Comet.P2PPort(),
 						TargetPort: intstr.FromString("p2p"),
 					},
 				},
@@ -310,7 +310,7 @@ func TestBuildServices(t *testing.T) {
 			{
 				Name:       "rpc",
 				Protocol:   corev1.ProtocolTCP,
-				Port:       26657,
+				Port:       crd.Spec.ChainSpec.Comet.RPCPort(),
 				TargetPort: intstr.FromString("rpc"),
 			},
 			{
