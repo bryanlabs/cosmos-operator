@@ -65,7 +65,7 @@ type CosmosFullNodeReconciler struct {
 // defaultReconcilePeriod preserves the historical cadence.
 const defaultReconcilePeriod = 60 * time.Second
 
-// FullNodeOption configures optional CosmosFullNodeReconciler behaviour. Variadic so adding options
+// FullNodeOption configures optional CosmosFullNodeReconciler behavior. Variadic so adding options
 // never breaks existing callers.
 type FullNodeOption func(*CosmosFullNodeReconciler)
 

@@ -39,7 +39,7 @@ func NewStatusClient(c client.Client) *StatusClient {
 // Pass manager.GetAPIReader() here. The cached client can return an object whose resourceVersion
 // lags the API server, and Status().Update() rejects a stale resourceVersion with a conflict. That
 // turns into a hot loop: the update fails, the reconcile aborts before it applies the change the
-// status was signalling, the triggering condition never clears, and the next pass repeats it.
+// status was signaling, the triggering condition never clears, and the next pass repeats it.
 func NewStatusClientWithReader(c client.Client, reader client.Reader) *StatusClient {
 	return &StatusClient{client: c, reader: reader}
 }

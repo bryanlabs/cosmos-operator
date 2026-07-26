@@ -310,7 +310,7 @@ func discoverOperatorImageRepo(ctx context.Context, reader client.Reader) string
 }
 
 // metricsOptions configures the metrics endpoint. With --metrics-secure the manager serves metrics
-// over HTTPS and authorises callers itself using controller-runtime's built-in filters, which is
+// over HTTPS and authorizes callers itself using controller-runtime's built-in filters, which is
 // what the unmaintained kube-rbac-proxy sidecar used to do.
 func metricsOptions() metricsserver.Options {
 	opts := metricsserver.Options{BindAddress: metricsAddr}

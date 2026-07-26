@@ -811,7 +811,7 @@ func TestResolveOperatorImage(t *testing.T) {
 		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/bryanlabs/cosmos-operator:"))
 	})
 
-	t.Run("honours the override so CI and the operator can disagree on repo name", func(t *testing.T) {
+	t.Run("honors the override so CI and the operator can disagree on repo name", func(t *testing.T) {
 		reset()
 		t.Setenv("OPERATOR_IMAGE_REPO", "ghcr.io/bryanlabs/cosmos-operator-contrib")
 		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/bryanlabs/cosmos-operator-contrib:"))
