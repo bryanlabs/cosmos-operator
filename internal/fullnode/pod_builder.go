@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -95,7 +96,7 @@ func NewPodBuilder(crd *cosmosv1.CosmosFullNode) PodBuilder {
 					Name: "healthcheck",
 					// Available images: https://github.com/orgs/strangelove-ventures/packages?repo_name=cosmos-operator
 					// IMPORTANT: Must use v0.6.2 or later.
-					Image:   "ghcr.io/bryanlabs/cosmos-operator:" + version.DockerTag(),
+					Image:   resolveOperatorImage(),
 					Command: []string{"/manager", "healthcheck", "--rpc-host", fmt.Sprintf("http://localhost:%d", crd.Spec.ChainSpec.Comet.RPCPort())},
 					Ports:   []corev1.ContainerPort{{ContainerPort: healthCheckPort, Protocol: corev1.ProtocolTCP}},
 					Resources: corev1.ResourceRequirements{
@@ -115,7 +116,7 @@ func NewPodBuilder(crd *cosmosv1.CosmosFullNode) PodBuilder {
 		// version check sidecar, runs on inverval in case the instance is halting for upgrade.
 		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{
 			Name:    "version-check-interval",
-			Image:   "ghcr.io/bryanlabs/cosmos-operator:" + version.DockerTag(),
+			Image:   resolveOperatorImage(),
 			Command: versionCheckCmd,
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -339,6 +340,20 @@ func resolveInfraToolImage() string {
 	return fmt.Sprintf("%s:%s", infraToolImage, infraToolVersion)
 }
 
+// operatorImageRepo is the repository the operator pulls its own image from for the
+// version-check containers. It defaults to the historical path, but CI publishes to a
+// different repository than the one this binary was originally released under, so it is
+// overridable via OPERATOR_IMAGE_REPO to keep the two in sync without a code change.
+const defaultOperatorImageRepo = "ghcr.io/bryanlabs/cosmos-operator"
+
+func resolveOperatorImage() string {
+	repo := os.Getenv("OPERATOR_IMAGE_REPO")
+	if repo == "" {
+		repo = defaultOperatorImageRepo
+	}
+	return repo + ":" + version.DockerTag()
+}
+
 func initContainers(crd *cosmosv1.CosmosFullNode, moniker string) []corev1.Container {
 	tpl := crd.Spec.PodTemplate
 	binary := crd.Spec.ChainSpec.Binary
@@ -461,7 +476,7 @@ fi
 	// After the status is patched, the pod will be restarted with the correct image.
 	required = append(required, corev1.Container{
 		Name:    "version-check",
-		Image:   "ghcr.io/bryanlabs/cosmos-operator:" + version.DockerTag(),
+		Image:   resolveOperatorImage(),
 		Command: versionCheckCmd,
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{

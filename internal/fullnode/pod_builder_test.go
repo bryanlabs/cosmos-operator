@@ -782,3 +782,15 @@ func TestPVCName(t *testing.T) {
 
 	require.Equal(t, "pvc-osmosis-5", PVCName(pod))
 }
+
+func TestResolveOperatorImage(t *testing.T) {
+	t.Run("defaults to the historical repo", func(t *testing.T) {
+		t.Setenv("OPERATOR_IMAGE_REPO", "")
+		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/bryanlabs/cosmos-operator:"))
+	})
+
+	t.Run("honours the override so CI and the operator can disagree on repo name", func(t *testing.T) {
+		t.Setenv("OPERATOR_IMAGE_REPO", "ghcr.io/bryanlabs/cosmos-operator-contrib")
+		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/bryanlabs/cosmos-operator-contrib:"))
+	})
+}
