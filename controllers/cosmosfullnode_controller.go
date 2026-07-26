@@ -343,7 +343,9 @@ func (r *CosmosFullNodeReconciler) SetupWithManager(ctx context.Context, mgr ctr
 		return fmt.Errorf("secret index field %s: %w", controllerOwnerField, err)
 	}
 
-	cbuilder := ctrl.NewControllerManagedBy(mgr).For(&cosmosv1.CosmosFullNode{})
+	cbuilder := ctrl.NewControllerManagedBy(mgr).
+		Named(cosmosv1.CosmosFullNodeController).
+		For(&cosmosv1.CosmosFullNode{})
 
 	// Watch for delete events for certain resources.
 	for _, kind := range []client.Object{

@@ -111,7 +111,10 @@ func NewCacheController(collector Collector, reader client.Reader, recorder reco
 func (c *CacheController) SetupWithManager(_ context.Context, mgr ctrl.Manager) error {
 	// We do not index pods because we presume another controller is already doing so.
 	// If we repeat it here, the manager returns an error.
+	// Named explicitly: controller-runtime requires unique names, and several controllers watch
+	// CosmosFullNode so they would all default to the same one.
 	return ctrl.NewControllerManagedBy(mgr).
+		Named(CacheControllerName).
 		For(&cosmosv1.CosmosFullNode{}).
 		Complete(c)
 }
