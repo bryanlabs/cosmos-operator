@@ -392,7 +392,7 @@ func TestPodBuilder(t *testing.T) {
 		require.NoError(t, err)
 
 		vols := pod.Spec.Volumes
-		require.Equal(t, 4, len(vols))
+		require.Equal(t, 5, len(vols))
 
 		require.Equal(t, "vol-chain-home", vols[0].Name)
 		require.Equal(t, "pvc-osmosis-5", vols[0].PersistentVolumeClaim.ClaimName)
@@ -405,13 +405,22 @@ func TestPodBuilder(t *testing.T) {
 		wantItems := []corev1.KeyToPath{
 			{Key: "config-overlay.toml", Path: "config-overlay.toml"},
 			{Key: "app-overlay.toml", Path: "app-overlay.toml"},
-			{Key: "node_key.json", Path: "node_key.json"},
 		}
-		require.Equal(t, wantItems, vols[2].ConfigMap.Items)
+		require.Equal(t, wantItems, vols[2].ConfigMap.Items,
+			"node key must not be projected from the ConfigMap")
+
+		// The node key is the pod's p2p identity, so it comes from a Secret.
+		require.Equal(t, "vol-node-key", vols[3].Name)
+		require.NotNil(t, vols[3].Secret)
+		require.Equal(t, "osmosis-5-node-key", vols[3].Secret.SecretName)
+		require.Equal(t, []corev1.KeyToPath{{Key: "node_key.json", Path: "node_key.json"}}, vols[3].Secret.Items)
+		// Secret volume files are owned root:fsGroup, so group read is required for the
+		// container user to read its own key.
+		require.Equal(t, int32(0440), *vols[3].Secret.DefaultMode)
 
 		// Required for statesync
-		require.Equal(t, "vol-system-tmp", vols[3].Name)
-		require.NotNil(t, vols[3].EmptyDir)
+		require.Equal(t, "vol-system-tmp", vols[4].Name)
+		require.NotNil(t, vols[4].EmptyDir)
 
 		require.Equal(t, len(pod.Spec.Containers), 2)
 
@@ -439,7 +448,8 @@ func TestPodBuilder(t *testing.T) {
 		require.True(t, mount.ReadOnly)
 
 		for _, c := range pod.Spec.InitContainers {
-			require.Len(t, c.VolumeMounts, 4)
+			// chain-home, system-tmp, tmp, config, node-key
+			require.Len(t, c.VolumeMounts, 5)
 			mount := c.VolumeMounts[0]
 			require.Equal(t, "vol-chain-home", mount.Name, c.Name)
 			require.Equal(t, "/home/operator/cosmos", mount.MountPath, c.Name)
@@ -633,7 +643,7 @@ gaiad start --home /home/operator/cosmos`
 		require.NoError(t, err)
 
 		vols := lo.SliceToMap(pod.Spec.Volumes, func(v corev1.Volume) (string, corev1.Volume) { return v.Name, v })
-		require.ElementsMatch(t, []string{"foo-vol", "vol-tmp", "vol-system-tmp", "vol-config", "vol-chain-home"}, lo.Keys(vols))
+		require.ElementsMatch(t, []string{"foo-vol", "vol-tmp", "vol-system-tmp", "vol-config", "vol-node-key", "vol-chain-home"}, lo.Keys(vols))
 		require.Equal(t, &corev1.EmptyDirVolumeSource{}, vols["foo-vol"].VolumeSource.EmptyDir)
 
 		containers := lo.SliceToMap(pod.Spec.Containers, func(c corev1.Container) (string, corev1.Container) { return c.Name, c })

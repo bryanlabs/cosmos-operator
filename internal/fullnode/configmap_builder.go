@@ -68,15 +68,12 @@ func BuildConfigMaps(crd *cosmosv1.CosmosFullNode, peers Peers, nodeKeys NodeKey
 		}
 		buf.Reset()
 
-		nodeKey, ok := nodeKeys[client.ObjectKey{Name: instanceName(crd, i), Namespace: crd.Namespace}]
-
-		if !ok {
+		// The node key is identity material and lives in a Secret, not here. It is still required
+		// to exist at this point so a missing key fails loudly rather than silently producing a
+		// pod with no p2p identity.
+		if _, ok := nodeKeys[client.ObjectKey{Name: instanceName(crd, i), Namespace: crd.Namespace}]; !ok {
 			return nil, kube.UnrecoverableError(fmt.Errorf("node key not found for %s", instanceName(crd, i)))
 		}
-
-		nodeKeyValue := string(nodeKey.MarshaledNodeKey)
-
-		data[nodeKeyFile] = nodeKeyValue
 
 		var cm corev1.ConfigMap
 		cm.Name = instanceName(crd, i)

@@ -45,6 +45,7 @@ type CosmosFullNodeReconciler struct {
 	cacheController           *cosmos.CacheController
 	configMapControl          fullnode.ConfigMapControl
 	nodeKeyCollector          *fullnode.NodeKeyCollector
+	nodeKeySecretControl      fullnode.NodeKeySecretControl
 	peerCollector             *fullnode.PeerCollector
 	podControl                fullnode.PodControl
 	pvcControl                fullnode.PVCControl
@@ -92,6 +93,7 @@ func NewFullNode(
 		cacheController:           cacheController,
 		configMapControl:          fullnode.NewConfigMapControl(client),
 		nodeKeyCollector:          fullnode.NewNodeKeyCollector(client),
+		nodeKeySecretControl:      fullnode.NewNodeKeySecretControl(client),
 		peerCollector:             fullnode.NewPeerCollector(client),
 		podControl:                fullnode.NewPodControl(client, cacheController),
 		pvcControl:                fullnode.NewPVCControl(client),
@@ -118,7 +120,7 @@ var (
 //+kubebuilder:rbac:groups=cosmos.strange.love,resources=cosmosfullnodes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=cosmos.strange.love,resources=cosmosfullnodes/finalizers,verbs=update
 // Generate RBAC roles to watch and update resources. IMPORTANT!!!! All resource names must be lowercase or cluster role will not work.
-//+kubebuilder:rbac:groups="",resources=pods;persistentvolumeclaims;services;serviceaccounts;configmaps,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=pods;persistentvolumeclaims;services;serviceaccounts;configmaps;secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete;bind;escalate
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;update;patch
 
@@ -173,6 +175,11 @@ func (r *CosmosFullNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if perr != nil {
 		peers = peers.Default()
 		errs.Append(perr)
+	}
+
+	// Persist node keys to Secrets before anything mounts them.
+	if err = r.nodeKeySecretControl.Reconcile(ctx, reporter, crd, nodeKeys); err != nil {
+		errs.Append(err)
 	}
 
 	// Reconcile ConfigMaps.
@@ -323,6 +330,17 @@ func (r *CosmosFullNodeReconciler) SetupWithManager(ctx context.Context, mgr ctr
 	)
 	if err != nil {
 		return fmt.Errorf("service index field %s: %w", controllerOwnerField, err)
+	}
+
+	// Index Secrets, which hold node keys.
+	err = mgr.GetFieldIndexer().IndexField(
+		ctx,
+		&corev1.Secret{},
+		controllerOwnerField,
+		kube.IndexOwner[*corev1.Secret](cosmosv1.CosmosFullNodeController),
+	)
+	if err != nil {
+		return fmt.Errorf("secret index field %s: %w", controllerOwnerField, err)
 	}
 
 	cbuilder := ctrl.NewControllerManagedBy(mgr).For(&cosmosv1.CosmosFullNode{})

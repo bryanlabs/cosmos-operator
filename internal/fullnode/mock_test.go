@@ -81,23 +81,43 @@ func (m *mockClient[T]) List(ctx context.Context, list client.ObjectList, opts .
 		return nil
 	}
 
+	// A caller may List several types while the mock holds only one. When the stored list is a
+	// different type, leave the result empty, which is what the API returns when nothing matches.
 	switch ref := list.(type) {
 	case *corev1.PodList:
-		*ref = m.ObjectList.(corev1.PodList)
+		if v, ok := m.ObjectList.(corev1.PodList); ok {
+			*ref = v
+		}
 	case *corev1.PersistentVolumeClaimList:
-		*ref = m.ObjectList.(corev1.PersistentVolumeClaimList)
+		if v, ok := m.ObjectList.(corev1.PersistentVolumeClaimList); ok {
+			*ref = v
+		}
 	case *corev1.ServiceList:
-		*ref = m.ObjectList.(corev1.ServiceList)
+		if v, ok := m.ObjectList.(corev1.ServiceList); ok {
+			*ref = v
+		}
 	case *corev1.ConfigMapList:
-		*ref = m.ObjectList.(corev1.ConfigMapList)
+		if v, ok := m.ObjectList.(corev1.ConfigMapList); ok {
+			*ref = v
+		}
+	case *corev1.SecretList:
+		if v, ok := m.ObjectList.(corev1.SecretList); ok {
+			*ref = v
+		}
 	case *corev1.ServiceAccountList:
-		*ref = m.ObjectList.(corev1.ServiceAccountList)
+		if v, ok := m.ObjectList.(corev1.ServiceAccountList); ok {
+			*ref = v
+		}
 	case *rbacv1.RoleList:
-		*ref = m.ObjectList.(rbacv1.RoleList)
+		if v, ok := m.ObjectList.(rbacv1.RoleList); ok {
+			*ref = v
+		}
 	case *rbacv1.RoleBindingList:
-		*ref = m.ObjectList.(rbacv1.RoleBindingList)
+		if v, ok := m.ObjectList.(rbacv1.RoleBindingList); ok {
+			*ref = v
+		}
 	default:
-		panic(fmt.Errorf("unknown ObjectList type: %T", m.ObjectList))
+		panic(fmt.Errorf("unknown ObjectList type: %T", list))
 	}
 
 	return m.ListErr

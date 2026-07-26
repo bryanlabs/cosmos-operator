@@ -228,6 +228,7 @@ const (
 	volChainHome = "vol-chain-home" // Stores live chain data and config files.
 	volTmp       = "vol-tmp"        // Stores temporary config files for manipulation later.
 	volConfig    = "vol-config"     // Overlay items from ConfigMap.
+	volNodeKey   = "vol-node-key"   // Node key (p2p identity) projected from a Secret.
 	volSystemTmp = "vol-system-tmp" // Necessary for statesync or else you may see the error: ERR State sync failed err="failed to create chunk queue: unable to create temp dir for state sync chunks: stat /tmp: no such file or directory" module=statesync
 )
 
@@ -266,6 +267,19 @@ func (b PodBuilder) WithOrdinal(ordinal int32) PodBuilder {
 					Items: []corev1.KeyToPath{
 						{Key: configOverlayFile, Path: configOverlayFile},
 						{Key: appOverlayFile, Path: appOverlayFile},
+					},
+				},
+			},
+		},
+		{
+			// The node key is the pod's p2p identity, so it comes from a Secret rather than the
+			// config ConfigMap.
+			Name: volNodeKey,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  NodeKeySecretName(b.crd, ordinal),
+					DefaultMode: ptr(int32(0440)),
+					Items: []corev1.KeyToPath{
 						{Key: nodeKeyFile, Path: nodeKeyFile},
 					},
 				},
@@ -289,6 +303,7 @@ func (b PodBuilder) WithOrdinal(ordinal int32) PodBuilder {
 		pod.Spec.InitContainers[i].VolumeMounts = append(mounts, []corev1.VolumeMount{
 			{Name: volTmp, MountPath: tmpDir},
 			{Name: volConfig, MountPath: tmpConfigDir},
+			{Name: volNodeKey, MountPath: nodeKeyDir},
 		}...)
 	}
 
@@ -310,6 +325,7 @@ const (
 	workDir          = "/home/operator"
 	tmpDir           = workDir + "/.tmp"
 	tmpConfigDir     = workDir + "/.config"
+	nodeKeyDir       = workDir + "/.node-key"
 	infraToolImage   = "ghcr.io/bryanlabs/infra-toolkit"
 	infraToolVersion = "v0.1.6"
 
@@ -473,13 +489,14 @@ set -eu
 CONFIG_DIR="$CHAIN_HOME/config"
 TMP_DIR="$HOME/.tmp/config"
 OVERLAY_DIR="$HOME/.config"
+NODE_KEY_DIR="$HOME/.node-key"
 
-# This is a hack to prevent adding another init container.
-# Ideally, this step is not concerned with merging config, so it would live elsewhere.
-# The node key is a secret mounted into the main "node" container, so we do not need this one.
-echo "Removing node key from chain's init subcommand..."
+# The chain's init subcommand writes its own node key. Replace it with the operator-managed one
+# from the mounted Secret so the p2p identity is stable across pod recreation.
+echo "Replacing node key with the operator-managed key..."
 rm -rf "$CONFIG_DIR/node_key.json"
-cp "$OVERLAY_DIR/node_key.json" "$CONFIG_DIR/node_key.json"
+cp "$NODE_KEY_DIR/node_key.json" "$CONFIG_DIR/node_key.json"
+chmod 600 "$CONFIG_DIR/node_key.json"
 
 echo "Merging config..."
 set -x
