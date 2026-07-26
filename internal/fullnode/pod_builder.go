@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	cosmosv1 "github.com/bryanlabs/cosmos-operator/api/v1"
 	"github.com/bryanlabs/cosmos-operator/internal/healthcheck"
@@ -340,14 +341,60 @@ func resolveInfraToolImage() string {
 	return fmt.Sprintf("%s:%s", infraToolImage, infraToolVersion)
 }
 
-// operatorImageRepo is the repository the operator pulls its own image from for the
-// version-check containers. It defaults to the historical path, but CI publishes to a
-// different repository than the one this binary was originally released under, so it is
-// overridable via OPERATOR_IMAGE_REPO to keep the two in sync without a code change.
+// defaultOperatorImageRepo is the last-resort repository for the version-check containers, used
+// only when the operator cannot determine where its own image came from.
 const defaultOperatorImageRepo = "ghcr.io/bryanlabs/cosmos-operator"
 
+// discoveredOperatorImageRepo holds the repository the operator's own container was pulled from,
+// recorded at startup. This is what makes a fork work without configuration: whoever builds and
+// publishes the operator gets version-check containers from the same place automatically.
+var discoveredOperatorImageRepo atomic.Value
+
+// SetOperatorImageRepo records the repository the running operator image came from. Call it before
+// the manager starts. An empty repo is ignored so a failed lookup cannot erase a good value.
+func SetOperatorImageRepo(repo string) {
+	if repo != "" {
+		discoveredOperatorImageRepo.Store(repo)
+	}
+}
+
+// RepoFromImageRef strips the tag or digest from a container image reference, leaving the
+// repository. It accounts for a registry host that carries a port, where the last colon is not a
+// tag separator, e.g. localhost:5000/cosmos-operator.
+func RepoFromImageRef(image string) string {
+	if image == "" {
+		return ""
+	}
+	// A digest reference pins content, so the repo is everything before the "@".
+	if at := strings.Index(image, "@"); at != -1 {
+		return image[:at]
+	}
+	colon := strings.LastIndex(image, ":")
+	if colon == -1 {
+		return image
+	}
+	// Only a colon after the final slash is a tag separator; before it, it is a registry port.
+	if strings.Contains(image[colon+1:], "/") {
+		return image
+	}
+	return image[:colon]
+}
+
+// resolveOperatorImage picks the repository for version-check containers, in order:
+//
+//  1. OPERATOR_IMAGE_REPO, so an operator can always pin it explicitly
+//  2. the repository the running operator image came from, discovered at startup
+//  3. defaultOperatorImageRepo
+//
+// Getting this wrong makes every managed pod request a tag that does not exist, so the discovery
+// step exists to stop that being the default outcome for anyone running a fork.
 func resolveOperatorImage() string {
 	repo := os.Getenv("OPERATOR_IMAGE_REPO")
+	if repo == "" {
+		if v, ok := discoveredOperatorImageRepo.Load().(string); ok {
+			repo = v
+		}
+	}
 	if repo == "" {
 		repo = defaultOperatorImageRepo
 	}

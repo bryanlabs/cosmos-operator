@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const controllerOwnerField = ".metadata.controller"
@@ -55,6 +54,28 @@ type CosmosFullNodeReconciler struct {
 	serviceAccountControl     fullnode.ServiceAccountControl
 	clusterRoleControl        fullnode.RoleControl
 	clusterRoleBindingControl fullnode.RoleBindingControl
+
+	// reconcilePeriod is how often a healthy fullnode is polled for consensus state. Every poll
+	// writes status, and every status write wakes the reconciler again, so this value sets the
+	// steady-state write load the operator puts on the API server.
+	reconcilePeriod time.Duration
+}
+
+// defaultReconcilePeriod preserves the historical cadence.
+const defaultReconcilePeriod = 60 * time.Second
+
+// FullNodeOption configures optional CosmosFullNodeReconciler behaviour. Variadic so adding options
+// never breaks existing callers.
+type FullNodeOption func(*CosmosFullNodeReconciler)
+
+// WithReconcilePeriod sets how often a healthy fullnode is polled. Values <= 0 are ignored so a
+// misconfigured flag cannot produce a hot loop.
+func WithReconcilePeriod(d time.Duration) FullNodeOption {
+	return func(r *CosmosFullNodeReconciler) {
+		if d > 0 {
+			r.reconcilePeriod = d
+		}
+	}
 }
 
 // NewFullNode returns a valid CosmosFullNode controller.
@@ -63,8 +84,9 @@ func NewFullNode(
 	recorder record.EventRecorder,
 	statusClient *fullnode.StatusClient,
 	cacheController *cosmos.CacheController,
+	opts ...FullNodeOption,
 ) *CosmosFullNodeReconciler {
-	return &CosmosFullNodeReconciler{
+	r := &CosmosFullNodeReconciler{
 		Client: client,
 
 		cacheController:           cacheController,
@@ -79,7 +101,12 @@ func NewFullNode(
 		serviceAccountControl:     fullnode.NewServiceAccountControl(client),
 		clusterRoleControl:        fullnode.NewRoleControl(client),
 		clusterRoleBindingControl: fullnode.NewRoleBindingControl(client),
+		reconcilePeriod:           defaultReconcilePeriod,
 	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 var (
@@ -204,8 +231,8 @@ func (r *CosmosFullNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	crd.Status.Peers = peers.AllExternal()
 
 	crd.Status.Phase = cosmosv1.FullNodePhaseCompete
-	// Requeue to constantly poll consensus state.
-	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
+	// Requeue to poll consensus state.
+	return ctrl.Result{RequeueAfter: r.reconcilePeriod}, nil
 }
 
 func (r *CosmosFullNodeReconciler) resultWithErr(crd *cosmosv1.CosmosFullNode, err kube.ReconcileError) (ctrl.Result, kube.ReconcileError) {
@@ -301,15 +328,15 @@ func (r *CosmosFullNodeReconciler) SetupWithManager(ctx context.Context, mgr ctr
 	cbuilder := ctrl.NewControllerManagedBy(mgr).For(&cosmosv1.CosmosFullNode{})
 
 	// Watch for delete events for certain resources.
-	for _, kind := range []*source.Kind{
-		{Type: &corev1.Pod{}},
-		{Type: &corev1.PersistentVolumeClaim{}},
-		{Type: &corev1.ConfigMap{}},
-		{Type: &corev1.Service{}},
+	for _, kind := range []client.Object{
+		&corev1.Pod{},
+		&corev1.PersistentVolumeClaim{},
+		&corev1.ConfigMap{},
+		&corev1.Service{},
 	} {
 		cbuilder.Watches(
 			kind,
-			&handler.EnqueueRequestForOwner{OwnerType: &cosmosv1.CosmosFullNode{}, IsController: true},
+			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &cosmosv1.CosmosFullNode{}, handler.OnlyControllerOwner()),
 			builder.WithPredicates(&predicate.Funcs{
 				DeleteFunc: func(_ event.DeleteEvent) bool { return true },
 			}),

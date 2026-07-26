@@ -95,12 +95,12 @@ func pvcResources(
 	dataSource *dataSource,
 	existingSize resource.Quantity,
 	tplResources corev1.ResourceRequirements,
-) corev1.ResourceRequirements {
+) corev1.VolumeResourceRequirements {
 	reqs := tplResources.DeepCopy()
 
 	if dataSource != nil {
 		reqs.Requests[corev1.ResourceStorage] = dataSource.size
-		return *reqs
+		return toVolumeResources(*reqs)
 	}
 
 	if autoScale := crd.Status.SelfHealing.PVCAutoScale; autoScale != nil {
@@ -118,7 +118,19 @@ func pvcResources(
 		reqs.Requests[corev1.ResourceStorage] = existingSize
 	}
 
-	return *reqs
+	return toVolumeResources(*reqs)
+}
+
+// toVolumeResources adapts the CRD's ResourceRequirements to the PVC-specific
+// VolumeResourceRequirements that Kubernetes 1.31 requires on a PersistentVolumeClaimSpec.
+//
+// The CRD deliberately keeps ResourceRequirements so the user-facing API shape does not change.
+// VolumeResourceRequirements simply drops the Claims field, which has no meaning for a volume.
+func toVolumeResources(r corev1.ResourceRequirements) corev1.VolumeResourceRequirements {
+	return corev1.VolumeResourceRequirements{
+		Limits:   r.Limits,
+		Requests: r.Requests,
+	}
 }
 func pvcDisabled(crd *cosmosv1.CosmosFullNode, ordinal int32) bool {
 	name := instanceName(crd, ordinal)

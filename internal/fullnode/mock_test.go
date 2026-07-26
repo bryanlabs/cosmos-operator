@@ -11,6 +11,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -167,7 +168,40 @@ func (m *mockClient[T]) Scheme() *runtime.Scheme {
 }
 
 func (m *mockClient[T]) Status() client.StatusWriter {
-	return m
+	return &mockSubResourceWriter[T]{parent: m}
+}
+
+// GroupVersionKindFor and IsObjectNamespaced were added to client.Client in controller-runtime
+// 0.15. Tests never exercise them.
+func (m *mockClient[T]) GroupVersionKindFor(runtime.Object) (schema.GroupVersionKind, error) {
+	panic("implement me")
+}
+
+func (m *mockClient[T]) IsObjectNamespaced(runtime.Object) (bool, error) {
+	panic("implement me")
+}
+
+func (m *mockClient[T]) SubResource(string) client.SubResourceClient {
+	panic("implement me")
+}
+
+// mockSubResourceWriter exists because SubResourceWriter.Create takes a different shape than
+// Client.Create, so one type cannot satisfy both. Status updates delegate to the parent so existing
+// assertions on UpdateCount and LastUpdateObject keep working.
+type mockSubResourceWriter[T client.Object] struct {
+	parent *mockClient[T]
+}
+
+func (w *mockSubResourceWriter[T]) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	panic("implement me")
+}
+
+func (w *mockSubResourceWriter[T]) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	return w.parent.Update(ctx, obj)
+}
+
+func (w *mockSubResourceWriter[T]) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+	return w.parent.Patch(ctx, obj, patch)
 }
 
 func (m *mockClient[T]) RESTMapper() meta.RESTMapper {

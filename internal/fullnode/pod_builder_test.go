@@ -2,6 +2,7 @@ package fullnode
 
 import (
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	cosmosv1 "github.com/bryanlabs/cosmos-operator/api/v1"
@@ -784,13 +785,68 @@ func TestPVCName(t *testing.T) {
 }
 
 func TestResolveOperatorImage(t *testing.T) {
+	// Discovery state is package level, so reset it around each case and restore it afterwards.
+	saved := discoveredOperatorImageRepo.Load()
+	t.Cleanup(func() {
+		discoveredOperatorImageRepo = atomic.Value{}
+		if saved != nil {
+			discoveredOperatorImageRepo.Store(saved)
+		}
+	})
+	reset := func() { discoveredOperatorImageRepo = atomic.Value{} }
+
 	t.Run("defaults to the historical repo", func(t *testing.T) {
+		reset()
 		t.Setenv("OPERATOR_IMAGE_REPO", "")
 		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/bryanlabs/cosmos-operator:"))
 	})
 
 	t.Run("honours the override so CI and the operator can disagree on repo name", func(t *testing.T) {
+		reset()
 		t.Setenv("OPERATOR_IMAGE_REPO", "ghcr.io/bryanlabs/cosmos-operator-contrib")
 		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/bryanlabs/cosmos-operator-contrib:"))
 	})
+
+	t.Run("prefers a discovered repo over the compiled default", func(t *testing.T) {
+		reset()
+		t.Setenv("OPERATOR_IMAGE_REPO", "")
+		SetOperatorImageRepo("ghcr.io/someone/their-fork")
+		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/someone/their-fork:"))
+	})
+
+	t.Run("env var wins over discovery", func(t *testing.T) {
+		reset()
+		SetOperatorImageRepo("ghcr.io/someone/their-fork")
+		t.Setenv("OPERATOR_IMAGE_REPO", "ghcr.io/explicit/pin")
+		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/explicit/pin:"))
+	})
+
+	t.Run("a failed discovery does not erase a good value", func(t *testing.T) {
+		reset()
+		t.Setenv("OPERATOR_IMAGE_REPO", "")
+		SetOperatorImageRepo("ghcr.io/someone/their-fork")
+		SetOperatorImageRepo("")
+		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/someone/their-fork:"))
+	})
+}
+
+func TestRepoFromImageRef(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		image string
+		want  string
+	}{
+		{"tagged", "ghcr.io/bryanlabs/cosmos-operator:v0.25.3", "ghcr.io/bryanlabs/cosmos-operator"},
+		{"no tag", "ghcr.io/bryanlabs/cosmos-operator", "ghcr.io/bryanlabs/cosmos-operator"},
+		{"digest", "ghcr.io/bryanlabs/cosmos-operator@sha256:abc123", "ghcr.io/bryanlabs/cosmos-operator"},
+		{"registry port with tag", "localhost:5000/cosmos-operator:v1", "localhost:5000/cosmos-operator"},
+		// The final colon belongs to the registry port, not a tag, so nothing may be stripped.
+		{"registry port without tag", "localhost:5000/cosmos-operator", "localhost:5000/cosmos-operator"},
+		{"docker hub short form", "bryanlabs/cosmos-operator:latest", "bryanlabs/cosmos-operator"},
+		{"empty", "", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, RepoFromImageRef(tt.image))
+		})
+	}
 }
