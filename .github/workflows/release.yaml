@@ -24,6 +24,9 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+      - name: envtest control-plane suite
+        run: make test-envtest
+
   build-and-push-image:
     needs: test
     runs-on: ubuntu-latest

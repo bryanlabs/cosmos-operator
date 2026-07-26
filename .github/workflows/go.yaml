@@ -35,3 +35,8 @@ jobs:
           cache: true
       - name: unit tests
         run: make test
+
+      # Boots a real API server and registers every controller. Catches startup failures
+      # that no unit test sees, such as duplicate controller names.
+      - name: envtest control-plane suite
+        run: make test-envtest
