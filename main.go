@@ -178,7 +178,7 @@ func startManager(cmd *cobra.Command, args []string) error {
 	// Version-check containers are pulled from the same repository as the operator itself, so
 	// discover where this image came from. Without this, a fork publishing under its own
 	// repository serves managed pods an image tag that does not exist.
-	fullnode.SetOperatorImageRepo(discoverOperatorImageRepo(ctx, mgr.GetAPIReader()))
+	fullnode.SetOperatorImage(discoverOperatorImage(ctx, mgr.GetAPIReader()))
 
 	// CacheController which fetches CometBFT status in the background.
 	httpClient := &http.Client{Timeout: 30 * time.Second}
@@ -275,12 +275,12 @@ func profileOpts(mode string) []func(*profile.Profile) {
 	}
 }
 
-// discoverOperatorImageRepo reads the operator's own container image and returns its repository,
-// so version-check containers are pulled from wherever this binary was published.
+// discoverOperatorImage reads the operator's own container image reference, so version-check
+// containers are pulled from wherever this binary was published, pinned the same way.
 //
 // Returns "" when discovery is not possible, in which case OPERATOR_IMAGE_REPO or the compiled
 // default applies. Discovery is best-effort by design: it must never stop the operator starting.
-func discoverOperatorImageRepo(ctx context.Context, reader client.Reader) string {
+func discoverOperatorImage(ctx context.Context, reader client.Reader) string {
 	podName, namespace := os.Getenv("POD_NAME"), os.Getenv("POD_NAMESPACE")
 	if podName == "" || namespace == "" {
 		return ""
@@ -299,12 +299,12 @@ func discoverOperatorImageRepo(ctx context.Context, reader client.Reader) string
 	}
 	for _, c := range pod.Spec.Containers {
 		if c.Name == want {
-			return fullnode.RepoFromImageRef(c.Image)
+			return c.Image
 		}
 	}
 	// A single-container pod is unambiguous even if the name does not match.
 	if len(pod.Spec.Containers) == 1 {
-		return fullnode.RepoFromImageRef(pod.Spec.Containers[0].Image)
+		return pod.Spec.Containers[0].Image
 	}
 	return ""
 }

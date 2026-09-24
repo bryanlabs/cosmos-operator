@@ -317,12 +317,12 @@ func TestPodBuilder(t *testing.T) {
 		require.Len(t, lo.Map(pod.Spec.InitContainers, func(c corev1.Container, _ int) string { return c.Name }), 7)
 
 		wantInitImages := []string{
-			"ghcr.io/bryanlabs/infra-toolkit:v0.1.6",
+			infraToolImage,
 			"main-image:v1.2.3",
-			"ghcr.io/bryanlabs/infra-toolkit:v0.1.6",
-			"ghcr.io/bryanlabs/infra-toolkit:v0.1.6",
-			"ghcr.io/bryanlabs/infra-toolkit:v0.1.6",
-			"ghcr.io/bryanlabs/infra-toolkit:v0.1.6",
+			infraToolImage,
+			infraToolImage,
+			infraToolImage,
+			infraToolImage,
 			"ghcr.io/bryanlabs/cosmos-operator:latest",
 		}
 		require.Equal(t, wantInitImages, lo.Map(pod.Spec.InitContainers, func(c corev1.Container, _ int) string {
@@ -796,14 +796,18 @@ func TestPVCName(t *testing.T) {
 
 func TestResolveOperatorImage(t *testing.T) {
 	// Discovery state is package level, so reset it around each case and restore it afterwards.
-	saved := discoveredOperatorImageRepo.Load()
+	saved, savedRef := discoveredOperatorImageRepo.Load(), discoveredOperatorImageRef.Load()
 	t.Cleanup(func() {
-		discoveredOperatorImageRepo = atomic.Value{}
+		discoveredOperatorImageRepo, discoveredOperatorImageRef = atomic.Value{}, atomic.Value{}
 		if saved != nil {
 			discoveredOperatorImageRepo.Store(saved)
 		}
+		if savedRef != nil {
+			discoveredOperatorImageRef.Store(savedRef)
+		}
 	})
-	reset := func() { discoveredOperatorImageRepo = atomic.Value{} }
+	reset := func() { discoveredOperatorImageRepo, discoveredOperatorImageRef = atomic.Value{}, atomic.Value{} }
+	const pinned = "ghcr.io/someone/their-fork:v1.2.3@sha256:adbbb3bc3f407e819371bbf5c6d3aed98eca7334768393e0821c1b7ac9ce04dd"
 
 	t.Run("defaults to the historical repo", func(t *testing.T) {
 		reset()
@@ -837,6 +841,28 @@ func TestResolveOperatorImage(t *testing.T) {
 		SetOperatorImageRepo("ghcr.io/someone/their-fork")
 		SetOperatorImageRepo("")
 		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/someone/their-fork:"))
+	})
+
+	t.Run("reuses a digest-pinned operator image as is", func(t *testing.T) {
+		reset()
+		t.Setenv("OPERATOR_IMAGE_REPO", "")
+		SetOperatorImage(pinned)
+		require.Equal(t, pinned, resolveOperatorImage())
+	})
+
+	t.Run("a tag-only operator image still contributes its repo", func(t *testing.T) {
+		reset()
+		t.Setenv("OPERATOR_IMAGE_REPO", "")
+		SetOperatorImage("ghcr.io/someone/their-fork:v1.2.3")
+		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/someone/their-fork:"))
+		require.NotContains(t, resolveOperatorImage(), "@")
+	})
+
+	t.Run("env var wins over a pinned image", func(t *testing.T) {
+		reset()
+		SetOperatorImage(pinned)
+		t.Setenv("OPERATOR_IMAGE_REPO", "ghcr.io/explicit/pin")
+		require.True(t, strings.HasPrefix(resolveOperatorImage(), "ghcr.io/explicit/pin:"))
 	})
 }
 

@@ -322,12 +322,13 @@ func (b PodBuilder) WithOrdinal(ordinal int32) PodBuilder {
 }
 
 const (
-	workDir          = "/home/operator"
-	tmpDir           = workDir + "/.tmp"
-	tmpConfigDir     = workDir + "/.config"
-	nodeKeyDir       = workDir + "/.node-key"
-	infraToolImage   = "ghcr.io/bryanlabs/infra-toolkit"
-	infraToolVersion = "v0.1.6"
+	workDir      = "/home/operator"
+	tmpDir       = workDir + "/.tmp"
+	tmpConfigDir = workDir + "/.config"
+	nodeKeyDir   = workDir + "/.node-key"
+	// Pinned by digest so a reschedule can never pull different code. Bump the tag and digest
+	// together, taking the digest from `crane digest`.
+	infraToolImage = "ghcr.io/bryanlabs/infra-toolkit:v0.1.6@sha256:6cadc1549abfa78aff9b90b77c0b18bf318a2966be46733a9cc2a339791ae0b5"
 
 	// Necessary for statesync
 	systemTmpDir = "/tmp"
@@ -354,7 +355,7 @@ func envVars(crd *cosmosv1.CosmosFullNode) []corev1.EnvVar {
 }
 
 func resolveInfraToolImage() string {
-	return fmt.Sprintf("%s:%s", infraToolImage, infraToolVersion)
+	return infraToolImage
 }
 
 // defaultOperatorImageRepo is the last-resort repository for the version-check containers, used
@@ -372,6 +373,21 @@ func SetOperatorImageRepo(repo string) {
 	if repo != "" {
 		discoveredOperatorImageRepo.Store(repo)
 	}
+}
+
+// discoveredOperatorImageRef holds the running operator's own image reference when it is pinned by
+// digest. Version-check containers run that same image, so they reuse the pin rather than a tag
+// that could be moved.
+var discoveredOperatorImageRef atomic.Value
+
+// SetOperatorImage records the image the running operator came from: its repository always, and
+// the full reference too when it is pinned by digest. Call it before the manager starts. An empty
+// image is ignored so a failed lookup cannot erase a good value.
+func SetOperatorImage(image string) {
+	if strings.Contains(image, "@sha256:") {
+		discoveredOperatorImageRef.Store(image)
+	}
+	SetOperatorImageRepo(RepoFromImageRef(image))
 }
 
 // RepoFromImageRef strips the tag or digest from a container image reference, leaving the
@@ -399,14 +415,18 @@ func RepoFromImageRef(image string) string {
 // resolveOperatorImage picks the repository for version-check containers, in order:
 //
 //  1. OPERATOR_IMAGE_REPO, so an operator can always pin it explicitly
-//  2. the repository the running operator image came from, discovered at startup
-//  3. defaultOperatorImageRepo
+//  2. the running operator's own digest-pinned reference, used as is
+//  3. the repository the running operator image came from, discovered at startup
+//  4. defaultOperatorImageRepo
 //
 // Getting this wrong makes every managed pod request a tag that does not exist, so the discovery
 // step exists to stop that being the default outcome for anyone running a fork.
 func resolveOperatorImage() string {
 	repo := os.Getenv("OPERATOR_IMAGE_REPO")
 	if repo == "" {
+		if ref, ok := discoveredOperatorImageRef.Load().(string); ok {
+			return ref
+		}
 		if v, ok := discoveredOperatorImageRepo.Load().(string); ok {
 			repo = v
 		}
