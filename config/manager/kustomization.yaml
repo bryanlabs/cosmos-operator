@@ -13,4 +13,5 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/bryanlabs/cosmos-operator
-  newTag: v0.26.1
+  newTag: v0.26.2
+  digest: sha256:92ef5751d3d63aae0ec26565969d303955243cd1007305671514fdbee65033d4
