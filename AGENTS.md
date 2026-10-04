@@ -48,8 +48,8 @@ Branch `codex/cosmos-operator-v0.25.1-manifest` (safety copy: `backup-bryanlabs-
 - `Dockerfile`: 3-stage (rocksdb libs, then `golang:1.23-alpine` CGO build with `rocksdb pebbledb`
   build tags, then `scratch`). Version injected via ldflags into `internal/version`.
   `local.Dockerfile` is the native-arch dev build.
-- Image `ghcr.io/bryanlabs/cosmos-operator`. Build amd64 with the local `multiarch-builder`
-  (the `cloud-bryanlabs-builder` is broken).
+- Image `ghcr.io/bryanlabs/cosmos-operator`. Build amd64 with `--builder worker1`
+  (the shared BuildKit on worker-1; see the `image-build` skill).
 - Make targets: `make manifests generate test build`, `make docker-build` / `docker-push`,
   `make deploy IMG=...`, `make deploy-prerelease`.
 
