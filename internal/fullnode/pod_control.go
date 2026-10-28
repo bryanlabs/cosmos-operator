@@ -143,6 +143,7 @@ func (pc PodControl) Reconcile(
 		}
 
 		totalMainPodsToUpdate := len(mainPodsToUpdate)
+		replaceHalted := maxBlockAge(crd) > 0
 
 		// Process main pods and track sync status
 		for _, existing := range pods.Items {
@@ -171,9 +172,14 @@ func (pc PodControl) Reconcile(
 				if podName == update.Name {
 					if existing.Spec.Containers[0].Image != update.Spec.Containers[0].Image {
 						// awaiting version upgrade
-						if !rpcReachable {
+						halted := replaceHalted && haltedForUpgrade(crd, &existing)
+						if !rpcReachable || halted {
 							updatedPods++
-							fmt.Printf("Deleting unreachable main pod for version upgrade, name: %s\n", podName) // TODO: remove
+							if halted {
+								reporter.Info("Deleting main pod halted at upgrade height", "name", podName)
+							} else {
+								fmt.Printf("Deleting unreachable main pod for version upgrade, name: %s\n", podName) // TODO: remove
+							}
 
 							// Delete the main pod
 							if err := pc.client.Delete(ctx, update, client.PropagationPolicy(metav1.DeletePropagationForeground)); client.IgnoreNotFound(err) != nil {

@@ -5,6 +5,7 @@ package healthcheck
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -26,20 +27,31 @@ type healthResponse struct {
 
 // Comet checks the CometBFT status endpoint to determine if the node is in-sync or not.
 type Comet struct {
-	client     Statuser
-	lastStatus int32
-	logger     logr.Logger
-	rpcHost    string
-	timeout    time.Duration
+	client      Statuser
+	lastStatus  int32
+	logger      logr.Logger
+	maxBlockAge time.Duration
+	now         func() time.Time
+	rpcHost     string
+	timeout     time.Duration
 }
 
 func NewComet(logger logr.Logger, client Statuser, rpcHost string, timeout time.Duration) *Comet {
 	return &Comet{
 		client:  client,
 		logger:  logger,
+		now:     time.Now,
 		rpcHost: rpcHost,
 		timeout: timeout,
 	}
+}
+
+// WithMaxBlockAge makes the check fail once the latest block is older than maxAge. A node halted at an upgrade
+// height still reports catching_up=false, so without this it stays ready while serving a frozen height.
+// Zero disables the check.
+func (h *Comet) WithMaxBlockAge(maxAge time.Duration) *Comet {
+	h.maxBlockAge = maxAge
+	return h
 }
 
 // ServeHTTP implements http.Handler.
@@ -61,6 +73,15 @@ func (h *Comet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !resp.InSync {
 		h.writeResponse(http.StatusUnprocessableEntity, w, resp)
 		return
+	}
+
+	if h.maxBlockAge > 0 {
+		if age := h.now().Sub(status.Result.SyncInfo.LatestBlockTime); age > h.maxBlockAge {
+			resp.InSync = false
+			resp.Error = fmt.Sprintf("latest block is %s old, limit %s", age.Round(time.Second), h.maxBlockAge)
+			h.writeResponse(http.StatusUnprocessableEntity, w, resp)
+			return
+		}
 	}
 
 	h.writeResponse(http.StatusOK, w, resp)

@@ -7,7 +7,7 @@ storage auto-scaling, and self-healing.
 
 ## Where it's used
 - Deployed as `cosmos-operator-controller-manager` in the `cosmos-operator-system` namespace
-  (image `ghcr.io/bryanlabs/cosmos-operator:v0.25.1`).
+  (image `ghcr.io/bryanlabs/cosmos-operator`, pinned by digest in `config/manager/kustomization.yaml`).
 - It manages the `CosmosFullNode` CRs that run the chain nodes in the `fullnodes` namespace
   (cosmoshub, provider/testnet, dydx, etc.). Those nodes are what `snapshot-processor` and the
   snapshots / explorer / upgrades services read from.
@@ -23,15 +23,27 @@ storage auto-scaling, and self-healing.
   mitigation, run by `SelfHealingReconciler`.
 
 ## BryanLabs customizations (vs upstream)
-Branch `codex/cosmos-operator-v0.25.1-manifest` (safety copy: `backup-bryanlabs-customizations`):
+Work lands on `main`; releases are `vX.Y.Z` tags built by `.github/workflows/release.yaml`.
 - **Module renamed** `strangelove-ventures/cosmos-operator` to `bryanlabs/cosmos-operator` (hard
   fork; all imports use the bryanlabs path, do not mix upstream paths).
 - **Dynamic P2P/RPC ports** driven by `CometConfig.P2PPort()/RPCPort()` from the CR spec instead of
   hardcoded constants (lets non-standard chains like Thornode use 27147/27146).
 - **Init images** default to `ghcr.io/bryanlabs/infra-toolkit` (not the strangelove one). See the
   `infra-toolkit` repo.
-- **Manager image pinned** to `ghcr.io/bryanlabs/cosmos-operator:v0.25.1` in
-  `config/manager/kustomization.yaml`.
+- **Manager image pinned by digest** in `config/manager/kustomization.yaml`. The operator reuses
+  that exact reference for the healthcheck and version-check sidecars it injects, so every release
+  rolls every managed pod, including the Penumbra validator sentries.
+- **Upgrade-aware readiness** (v0.27.0, opt-in per CR with the annotation
+  `cosmos.bryanlabs.net/max-block-age: "60s"`, any Go duration). A node halted at an upgrade height
+  still reports `catching_up=false`, so the stock healthcheck kept it Ready while it served a frozen
+  height. With the annotation (code in `internal/fullnode/block_age.go`):
+  - the healthcheck sidecar returns 422 once the latest block is older than the limit, so the RPC
+    Services drop the pod and downstream proxies fail over;
+  - pods running an image from an earlier `spec.chain.versions` entry than their height calls for
+    are replaced together, instead of one at a time under `maxUnavailable`;
+  - p2p Services set `publishNotReadyAddresses`, so a network-wide halt does not drop peers.
+  Only opt in chains that produce blocks steadily; an idle chain with `create_empty_blocks=false`
+  would flap.
 - Multi-version rollout via `--label-selector=cosmos-operator-version=<tag>` so several operator
   instances can watch disjoint CR sets (see `DEPLOYMENT_PLAN_v0.25.0.md`).
 

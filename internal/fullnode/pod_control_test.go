@@ -639,6 +639,106 @@ func TestPodControl_Reconcile(t *testing.T) {
 		require.Equal(t, 5, mClient.DeleteCount)
 	})
 
+	t.Run("version upgrade replaces halted pods together with max block age", func(t *testing.T) {
+		crd := defaultCRD()
+		crd.Name = "hub"
+		crd.Namespace = namespace
+		crd.Annotations = map[string]string{maxBlockAgeAnnotation: "60s"}
+		crd.Spec.Replicas = 5
+		crd.Spec.RolloutStrategy = cosmosv1.RolloutStrategy{
+			MaxUnavailable: ptr(intstr.FromInt(2)),
+		}
+		crd.Spec.ChainSpec = cosmosv1.ChainSpec{
+			Versions: []cosmosv1.ChainVersion{
+				{
+					Image: "image",
+				},
+				{
+					UpgradeHeight: 100,
+					Image:         "new-image",
+				},
+			},
+		}
+		crd.Status.Height = make(map[string]uint64)
+
+		pods, err := BuildPods(&crd, nil)
+		require.NoError(t, err)
+		existing := diff.New(nil, pods).Creates()
+
+		mClient := newMockPodClient(existing)
+
+		// Every pod answers RPC but is stopped at the upgrade height on the old image.
+		syncInfo := make(map[string]*cosmosv1.SyncInfoPodStatus)
+		for _, pod := range existing {
+			crd.Status.Height[pod.Name] = 100
+			syncInfo[pod.Name] = &cosmosv1.SyncInfoPodStatus{
+				Height: ptr(uint64(100)),
+				InSync: ptr(true),
+			}
+		}
+
+		control := NewPodControl(mClient, nil)
+
+		requeue, err := control.Reconcile(ctx, nopReporter, &crd, nil, syncInfo)
+		require.NoError(t, err)
+		require.False(t, requeue)
+
+		require.Zero(t, mClient.CreateCount)
+		require.Equal(t, 5, mClient.DeleteCount, "all halted pods should be replaced in one pass")
+	})
+
+	t.Run("image swap in the current range still rolls with max block age", func(t *testing.T) {
+		crd := defaultCRD()
+		crd.Name = "hub"
+		crd.Namespace = namespace
+		crd.Annotations = map[string]string{maxBlockAgeAnnotation: "60s"}
+		crd.Spec.Replicas = 5
+		crd.Spec.RolloutStrategy = cosmosv1.RolloutStrategy{
+			MaxUnavailable: ptr(intstr.FromInt(2)),
+		}
+		crd.Spec.ChainSpec = cosmosv1.ChainSpec{
+			Versions: []cosmosv1.ChainVersion{
+				{
+					Image: "image",
+				},
+				{
+					UpgradeHeight: 100,
+					Image:         "new-image",
+				},
+			},
+		}
+		crd.Status.Height = make(map[string]uint64)
+		for i := 0; i < 5; i++ {
+			crd.Status.Height[fmt.Sprintf("hub-%d", i)] = 150
+		}
+
+		pods, err := BuildPods(&crd, nil)
+		require.NoError(t, err)
+		existing := diff.New(nil, pods).Creates()
+
+		mClient := newMockPodClient(existing)
+
+		syncInfo := make(map[string]*cosmosv1.SyncInfoPodStatus)
+		for _, pod := range existing {
+			syncInfo[pod.Name] = &cosmosv1.SyncInfoPodStatus{
+				Height: ptr(uint64(150)),
+				InSync: ptr(true),
+			}
+		}
+
+		// A patch release replaces the image of the active entry. The pods are healthy, so this stays a rolling update.
+		crd.Spec.ChainSpec.Versions[1].Image = "new-image-patched"
+
+		control := NewPodControl(mClient, nil)
+
+		requeue, err := control.Reconcile(ctx, nopReporter, &crd, nil, syncInfo)
+		require.NoError(t, err)
+		require.True(t, requeue)
+
+		require.Zero(t, mClient.CreateCount)
+		require.Equal(t, 2, mClient.DeleteCount)
+	})
+
 	t.Run("version mismatch with unreachable pod", func(t *testing.T) {
 		// Create a simple CRD with upgrade heights
 		crd := defaultCRD()

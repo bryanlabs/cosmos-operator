@@ -18,6 +18,25 @@ import (
 func TestBuildServices(t *testing.T) {
 	t.Parallel()
 
+	t.Run("p2p services publish not ready addresses with max block age", func(t *testing.T) {
+		crd := defaultCRD()
+		crd.Spec.Replicas = 2
+
+		for _, svc := range BuildServices(&crd)[:2] {
+			require.False(t, svc.Object().Spec.PublishNotReadyAddresses)
+		}
+
+		crd.Annotations = map[string]string{maxBlockAgeAnnotation: "60s"}
+		svcs := BuildServices(&crd)
+		for _, svc := range svcs[:2] {
+			require.Equal(t, "p2p", svc.Object().Labels["app.kubernetes.io/component"])
+			require.True(t, svc.Object().Spec.PublishNotReadyAddresses)
+		}
+		rpc := svcs[2].Object()
+		require.Equal(t, "rpc", rpc.Labels["app.kubernetes.io/component"])
+		require.False(t, rpc.Spec.PublishNotReadyAddresses, "rpc must keep honoring readiness")
+	})
+
 	t.Run("regular node services", func(t *testing.T) {
 		crd := defaultCRD()
 		crd.Spec.Replicas = 3

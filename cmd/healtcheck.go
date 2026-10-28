@@ -26,6 +26,7 @@ func HealthCheckCmd() *cobra.Command {
 	hc.Flags().String("log-format", "console", "'console' or 'json'")
 	hc.Flags().Duration("timeout", 5*time.Second, "how long to wait before timing out requests to rpc-host")
 	hc.Flags().String("addr", fmt.Sprintf(":%d", healthcheck.Port), "listen address for server to bind")
+	hc.Flags().Duration("max-block-age", 0, "report not ready when the latest block is older than this; 0 disables")
 
 	if err := viper.BindPFlags(hc.Flags()); err != nil {
 		panic(err)
@@ -39,6 +40,7 @@ func startHealthCheckServer(cmd *cobra.Command, args []string) error {
 		listenAddr = viper.GetString("addr")
 		rpcHost    = viper.GetString("rpc-host")
 		timeout    = viper.GetDuration("timeout")
+		maxAge     = viper.GetDuration("max-block-age")
 
 		httpClient  = &http.Client{Timeout: 30 * time.Second}
 		cometClient = cosmos.NewCometClient(httpClient)
@@ -49,7 +51,7 @@ func startHealthCheckServer(cmd *cobra.Command, args []string) error {
 	defer func() { _ = zlog.Sync() }()
 
 	mux := http.NewServeMux()
-	mux.Handle("/", healthcheck.NewComet(logger, cometClient, rpcHost, timeout))
+	mux.Handle("/", healthcheck.NewComet(logger, cometClient, rpcHost, timeout).WithMaxBlockAge(maxAge))
 	mux.HandleFunc("/disk", healthcheck.DiskUsage)
 
 	srv := &http.Server{
@@ -61,7 +63,7 @@ func startHealthCheckServer(cmd *cobra.Command, args []string) error {
 
 	var eg errgroup.Group
 	eg.Go(func() error {
-		logger.Info("Healthcheck server listening", "addr", listenAddr, "rpcHost", rpcHost)
+		logger.Info("Healthcheck server listening", "addr", listenAddr, "rpcHost", rpcHost, "maxBlockAge", maxAge)
 		return srv.ListenAndServe()
 	})
 	eg.Go(func() error {

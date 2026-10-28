@@ -63,6 +63,8 @@ func BuildServices(crd *cosmosv1.CosmosFullNode) []diff.Resource[*corev1.Service
 			},
 		}
 		svc.Spec.Selector = map[string]string{kube.InstanceLabel: instanceName(crd, ordinal)}
+		// A stale-block readiness failure must not take p2p away, or a network-wide halt would cut every peer.
+		svc.Spec.PublishNotReadyAddresses = maxBlockAge(crd) > 0
 		if i < maxExternal {
 			preserveMergeInto(svc.Labels, crd.Spec.Service.P2PTemplate.Metadata.Labels)
 			preserveMergeInto(svc.Annotations, crd.Spec.Service.P2PTemplate.Metadata.Annotations)

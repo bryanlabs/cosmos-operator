@@ -97,6 +97,62 @@ func TestComet_ServeHTTP(t *testing.T) {
 		require.Equal(t, want, got)
 	})
 
+	t.Run("stale block with max block age", func(t *testing.T) {
+		now := time.Date(2026, 10, 28, 14, 30, 0, 0, time.UTC)
+		client := mockClient(func(ctx context.Context, rpcHost string) (cosmos.CometStatus, error) {
+			var stub cosmos.CometStatus
+			stub.Result.SyncInfo.LatestBlockTime = now.Add(-15 * time.Minute)
+			return stub, nil
+		})
+
+		h := NewComet(nopLogger, client, testRPC, 10*time.Second).WithMaxBlockAge(time.Minute)
+		h.now = func() time.Time { return now }
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, stubReq)
+
+		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		var got healthResponse
+		err := json.NewDecoder(w.Body).Decode(&got)
+		require.NoError(t, err)
+
+		want := healthResponse{
+			Address: testRPC,
+			InSync:  false,
+			Error:   "latest block is 15m0s old, limit 1m0s",
+		}
+		require.Equal(t, want, got)
+	})
+
+	t.Run("fresh block with max block age", func(t *testing.T) {
+		now := time.Date(2026, 10, 28, 14, 30, 0, 0, time.UTC)
+		client := mockClient(func(ctx context.Context, rpcHost string) (cosmos.CometStatus, error) {
+			var stub cosmos.CometStatus
+			stub.Result.SyncInfo.LatestBlockTime = now.Add(-6 * time.Second)
+			return stub, nil
+		})
+
+		h := NewComet(nopLogger, client, testRPC, 10*time.Second).WithMaxBlockAge(time.Minute)
+		h.now = func() time.Time { return now }
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, stubReq)
+
+		require.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("stale block without max block age", func(t *testing.T) {
+		client := mockClient(func(ctx context.Context, rpcHost string) (cosmos.CometStatus, error) {
+			var stub cosmos.CometStatus
+			stub.Result.SyncInfo.LatestBlockTime = time.Now().Add(-24 * time.Hour)
+			return stub, nil
+		})
+
+		h := NewComet(nopLogger, client, testRPC, 10*time.Second)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, stubReq)
+
+		require.Equal(t, http.StatusOK, w.Code)
+	})
+
 	t.Run("times out", func(t *testing.T) {
 		var gotCtx context.Context
 		client := mockClient(func(ctx context.Context, rpcHost string) (cosmos.CometStatus, error) {
